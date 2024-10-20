@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Mensualidades del Gym</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        form label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input, button {
+            padding: 8px;
+            margin-top: 5px;
+        }
+
+        button {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2ecc71;
+        }
+
+        .user-list {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .user-section {
+            width: 45%;
+        }
+
+        .user-section h3 {
+            text-align: center;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        ul li {
+            margin-bottom: 10px;
+        }
+
+        .expired {
+            color: red;
+            font-weight: bold;
+        }
+
+        .renew-button {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .renew-button:hover {
+            background-color: #3498db;
+        }
+
+        .search {
+            margin-bottom: 20px;
+        }
+
+        .reset-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .reset-button:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Registro de Mensualidades del Gym</h1>
+
+    <!-- Formulario de registro de clientes -->
+    <form id="gymForm">
+        <label for="name">Nombre:</label>
+        <input type="text" id="name" required>
+
+        <label for="startDate">Fecha de inicio de la mensualidad:</label>
+        <input type="date" id="startDate" required>
+
+        <label for="months">Número de meses:</label>
+        <input type="number" id="months" min="1" required>
+
+        <button type="submit">Guardar</button>
+    </form>
+
+    <!-- Campo de búsqueda -->
+    <div class="search">
+        <label for="searchInput">Buscar Cliente:</label>
+        <input type="text" id="searchInput" placeholder="Ingresa el nombre del cliente">
+    </div>
+
+    <!-- Listas de usuarios vigentes y vencidos -->
+    <div class="user-list">
+        <div class="user-section">
+            <h3>Mensualidades Vigentes</h3>
+            <ul id="activeUsers"></ul>
+        </div>
+        <div class="user-section">
+            <h3>Mensualidades Vencidas</h3>
+            <ul id="expiredUsers"></ul>
+        </div>
+    </div>
+
+    <!-- Botón para reiniciar con contraseña -->
+    <button class="reset-button" id="resetButton">Reiniciar Todo</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gymForm = document.getElementById('gymForm');
+            const searchInput = document.getElementById('searchInput');
+            const activeUsersList = document.getElementById('activeUsers');
+            const expiredUsersList = document.getElementById('expiredUsers');
+            const resetButton = document.getElementById('resetButton');
+            const resetPassword = 'admin123'; // Contraseña para reiniciar los datos
+
+            // Cargar usuarios al inicio
+            loadUsers();
+
+            // Evento para agregar un nuevo usuario
+            gymForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const name = document.getElementById('name').value;
+                const startDate = new Date(document.getElementById('startDate').value);
+                const months = parseInt(document.getElementById('months').value);
+
+                const endDate = new Date(startDate);
+                endDate.setMonth(endDate.getMonth() + months);
+
+                const user = {
+                    name,
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0],
+                };
+
+                saveUser(user);
+                loadUsers();
+
+                gymForm.reset();
+            });
+
+            // Guardar el usuario en localStorage
+            function saveUser(user) {
+                let users = JSON.parse(localStorage.getItem('gymUsers')) || [];
+                users.push(user);
+                localStorage.setItem('gymUsers', JSON.stringify(users));
+            }
+
+            // Cargar usuarios del localStorage
+            function loadUsers() {
+                activeUsersList.innerHTML = '';
+                expiredUsersList.innerHTML = '';
+
+                let users = JSON.parse(localStorage.getItem('gymUsers')) || [];
+                const searchTerm = searchInput.value.toLowerCase();
+
+                users.forEach((user, index) => {
+                    const listItem = document.createElement('li');
+                    const now = new Date();
+                    const endDate = new Date(user.endDate);
+
+                    // Filtrar por el nombre introducido en el buscador
+                    if (!user.name.toLowerCase().includes(searchTerm)) {
+                        return;
+                    }
+
+                    listItem.textContent = `${user.name} - Mensualidad hasta: ${user.endDate}`;
+
+                    const renewButton = document.createElement('button');
+                    renewButton.textContent = "Renovar";
+                    renewButton.classList.add('renew-button');
+
+                    // Evento del botón de renovar
+                    renewButton.addEventListener('click', () => {
+                        const additionalMonths = prompt('¿Cuántos meses deseas agregar a la mensualidad?', 1);
+                        if (additionalMonths && additionalMonths > 0) {
+                            renewUser(index, parseInt(additionalMonths));
+                        }
+                    });
+
+                    listItem.appendChild(renewButton);
+
+                    // Clasificar usuarios en vigentes o vencidos
+                    if (endDate < now) {
+                        listItem.classList.add('expired');
+                        listItem.textContent += " (Mensualidad vencida)";
+                        expiredUsersList.appendChild(listItem);
+                    } else {
+                        activeUsersList.appendChild(listItem);
+                    }
+                });
+            }
+
+            // Función para renovar la mensualidad
+            function renewUser(index, additionalMonths) {
+                let users = JSON.parse(localStorage.getItem('gymUsers')) || [];
+                const user = users[index];
+                
+                let endDate = new Date(user.endDate);
+                endDate.setMonth(endDate.getMonth() + additionalMonths);
+
+                user.endDate = endDate.toISOString().split('T')[0];
+
+                // Guardar los cambios y recargar la lista
+                users[index] = user;
+                localStorage.setItem('gymUsers', JSON.stringify(users));
+                loadUsers();
+            }
+
+            // Filtro de búsqueda
+            searchInput.addEventListener('input', loadUsers);
+
+            // Evento para reiniciar los datos
+            resetButton.addEventListener('click', () => {
+                const password = prompt("Por favor, ingresa la contraseña para reiniciar:");
+                if (password === resetPassword) {
+                    if (confirm("¿Estás seguro de que deseas reiniciar todos los datos? Esta acción no se puede deshacer.")) {
+                        localStorage.removeItem('gymUsers');
+                        loadUsers();
+                    }
+                } else {
+                    alert("Contraseña incorrecta. No se puede realizar el reinicio.");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
